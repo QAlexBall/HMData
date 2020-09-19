@@ -26,7 +26,7 @@ def main():
         spider.menu_search("O2O实时看板")
         for station in spider.merchants_config["merchants"][merchant]:
             station_info = spider.select_distribution_station(station)
-            print(station_info)
+            print(station, station_info)
             basic = station_info['basic']
             larger = station_info['larger_than_35']
             if basic:
@@ -36,8 +36,8 @@ def main():
 
         spider.driver.switch_to_default_content()
 
-    csv_f.cose()
-    time.sleep(10)
+    csv_f.close()
+    time.sleep(1000)
     spider.driver.close()
 
 

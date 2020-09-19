@@ -3,6 +3,8 @@ import time
 import json
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 from config import MERCHANTS_CONFIG
 from utils.utils import split
@@ -10,7 +12,12 @@ from utils.utils import split
 
 class HMSpider(object):
     def __init__(self):
-        self.driver = webdriver.Chrome("./bin/chromedriver.exe")
+        option = None
+        # option = webdriver.ChromeOptions()
+        # option.add_argument('--headless')
+        # option.add_argument('window-size=1920,1080')
+        self.driver = webdriver.Chrome("./bin/chromedriver.exe", chrome_options=option)
+        self.driver.implicitly_wait(30)
         self.cookies_file_p = "./config/cookies_final.txt"
         self.merchant_config_p = "./config/merchants.json"
         # self.merchants_config = self._load_merchants_config()
@@ -40,82 +47,107 @@ class HMSpider(object):
         self.driver.get(url)
     
     def select_merchant(self, name):
-        time.sleep(3)
-        selector = self.by_xpath('//*[@class="portal-switcher-trigger"]')
+        selector = self.by_xpath_with_sleep('//*[@class="portal-switcher-trigger"]')
         selector.click()
         time.sleep(1)
         self.driver.switch_to_frame('iFrameResizer0')
-        merchant_selector = self.by_xpath('//*[@id="container"]/div/div/div/div/div[1]/form/div[1]/div[2]/span/span[1]')
+        merchant_selector = self.by_xpath_with_sleep('//*[@id="container"]/div/div/div/div/div[1]/form/div[1]/div[2]/span/span[1]')
         merchant_selector.click()
-        time.sleep(1)
-        merchant = self.by_xpath('/html/body/div[4]/ul/li[@title="{}"]'.format(name))
+        merchant = self.by_xpath_with_sleep('/html/body/div[4]/ul/li[@title="{}"]'.format(name))
         merchant.click()
-        yes_button = self.by_xpath('//*[@id="container"]/div/div/div/div/div[1]/form/div[7]/button[1]')
+        yes_button = self.by_xpath_with_sleep('//*[@id="container"]/div/div/div/div/div[1]/form/div[7]/button[1]')
         yes_button.click()
         self.driver.switch_to_default_content()
-        time.sleep(5)
     
     def menu_search(self, name):
-        menu_search = self.by_xpath('//*[@id="header-info"]/div/div[1]')
+        menu_search = self.by_xpath_with_sleep('//*[@id="header-info"]/div/div[1]', 1)
         menu_search.click()
-        time.sleep(1)
-        input_button = self.by_xpath('/html/body/div[5]/div[2]/div/span/input')
+        input_button = self.by_xpath_with_sleep('/html/body/div[5]/div[2]/div/span/input', 1)
         input_button.clear()
         input_button.send_keys(name)
-        time.sleep(1)
-        dashbaord_selector = self.by_xpath('/html/body/div[5]/div[2]/ul/li[@title="{}"]'.format(name))
+        dashbaord_selector = self.by_xpath_with_sleep('/html/body/div[5]/div[2]/ul/li[@title="{}"]'.format(name), 1)
         dashbaord_selector.click()
-        time.sleep(5)
 
     def select_distribution_station(self, name):
-        iframe = self.by_xpath('//*[@id="wrapBody"]/div[2]/div/iframe')
+        print("==> select station", name)
+        info = {'basic': None, 'larger_than_35': None}
+        iframe = self.by_xpath_with_sleep('//*[@id="wrapBody"]/div[2]/div/iframe', 1)
         self.driver.switch_to_frame(iframe)
-        station_input = self.by_xpath('//*[@id="dockCode"]/span/input')
+        station_input = self.by_xpath_with_sleep('//*[@id="dockCode"]/span/input', 1)
         station_input.clear()
         station_input.send_keys(name)
-        time.sleep(2)
-        # station = self.by_xpath('/html/body/div[3]/div/div/ul/li')
-        info = {}
-        try:
-            station = self.by_xpath('/html/body/div[2]/div/div/ul')
+        station = self.by_xpath_with_sleep('/html/body/div[2]/div/div/ul', 2)
+        if station.text:
             station.click()
-            find = self.by_xpath('//*[@id="container"]/div/div[2]/div/div/form/div[2]/div[2]/button[1]')
+            find = self.by_xpath_with_sleep('//*[@id="container"]/div/div[2]/div/div/form/div[2]/div[2]/button[1]', 1)
             find.click()
-            time.sleep(5)
-            item = self.by_xpath('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]')
+            item = self.by_xpath_with_sleep('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]', 2)
+
             info['basic'] = item.text.split("\n")
-            time.sleep(3)
             if info['basic'][-1] != '0':
-                info['larger_than_35'] = self.analysis_timeout_order()
+                try:
+                    info['larger_than_35'] = self.analysis_timeout_order()
+                except:
+                    print("===> analysis timeout order failed!")
+                    info['larger_than_35'] = 0
             else:
                 info['larger_than_35'] = 0
-        except:
-            info = {'basic': None, 'larger_than_35': None}
+        else:
+            print("didn't exist", station)
         self.driver.switch_to_default_content()
         return info
 
     def analysis_timeout_order(self):
+        print("===> analysis timeout order")
         item = self.by_xpath('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]/div[7]/div[2]')
         item.click()
-        time.sleep(10)
-        orders = []
-        timeout_orders = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/table/tbody')
-        page_orders = split(timeout_orders.text.split("\n"), 8)
-        orders += page_orders
-        next_button = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[3]/div/button[2]')
-        while next_button.is_enabled():
-            next_button.click()
+        try:
+            orders = []
             time.sleep(5)
-            timeout_orders = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/table/tbody')
-            page_orders = split(timeout_orders.text.split("\n"), 8)
+            curr_orders, count = [], 0
+            while len(curr_orders) < 8 and count < 30:
+                time.sleep(2)
+                timeout_orders = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/table/tbody')
+                curr_orders = timeout_orders.text.split("\n")
+                count += 1
+            
+            page_orders = split(curr_orders, 8)
             orders += page_orders
-        larger_than_35 = len([item for item in orders if item != '-' and int(item) >= 35])
-        close_button = self.by_xpath('/html/body/div[2]/div/div[2]/a/i')
+            next_button = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[3]/div/button[2]')
+            while next_button.is_enabled():
+                next_button.click()
+                curr_orders = [], 0
+                while len(curr_orders) < 8 and count < 30:
+                    time.sleep(2)
+                    timeout_orders = self.by_xpath('/html/body/div[2]/div/div[2]/div[2]/div[2]/div/div[2]/table/tbody')
+                    curr_orders = timeout_orders.text.split("\n")
+                    count += 1
+
+                page_odrers = split(curr_orders, 8)
+                orders += page_orders
+            larger_than_35 = len([item for item in orders if item != '-' and int(item) >= 35])
+        except:
+            print("===> can't find such orders!")
+            larger_than_35 = 0
+        close_button = self.by_xpath_with_sleep('/html/body/div[2]/div/div[2]/a/i', 1)
         close_button.click()
         return larger_than_35
 
     def by_xpath(self, path):
-        return self.driver.find_element_by_xpath(path)
+        element = self.driver.find_element_by_xpath(path)
+        return element
+    
+    def by_xpath_with_sleep(self, path, peroid=1, count_num=60):
+        element, count = None, 0
+        while element is None and count < count_num:
+            count += 1
+            try:
+                time.sleep(peroid)
+                element = self.by_xpath(path)
+            except:
+                print("can't get element with XPath", path)
+                element = None
+        return element
 
     def _load_merchants_config(self):
         with open(self.merchant_config_p, "r", encoding="GB18030") as f:
