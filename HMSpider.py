@@ -7,15 +7,16 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 from config import MERCHANTS_CONFIG
-from utils.utils import split
+from utils.utils import split, generete_cookies
 
 
 class HMSpider(object):
-    def __init__(self):
+    def __init__(self, visible=None):
         option = None
-        # option = webdriver.ChromeOptions()
-        # option.add_argument('--headless')
-        # option.add_argument('window-size=1920,1080')
+        option = webdriver.ChromeOptions()
+        if visible == '0':
+            option.add_argument('--headless')
+            option.add_argument('window-size=1920,1080')
         self.driver = webdriver.Chrome("./bin/chromedriver.exe", chrome_options=option)
         self.driver.implicitly_wait(30)
         self.cookies_file_p = "./config/cookies_final.txt"
@@ -79,9 +80,11 @@ class HMSpider(object):
         station = self.by_xpath_with_sleep('/html/body/div[2]/div/div/ul', 2)
         if station.text:
             station.click()
-            find = self.by_xpath_with_sleep('//*[@id="container"]/div/div[2]/div/div/form/div[2]/div[2]/button[1]', 1)
+            # find = self.by_xpath_with_sleep('//*[@id="container"]/div/div[2]/div/div/form/div[2]/div[2]/button[1]', 1)
+            find = self.by_xpath_with_sleep('//*[@id="container"]/div/div[1]/div/div/form/div[2]/div[2]/button[1]', 1)
             find.click()
-            item = self.by_xpath_with_sleep('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]', 2)
+            # item = self.by_xpath_with_sleep('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]', 2)
+            item = self.by_xpath_with_sleep('//*[@id="container"]/div/div[2]/div[2]/div/div[2]/div[2]/div[4]/div[2]', 2)
 
             info['basic'] = item.text.split("\n")
             if info['basic'][-1] != '0':
@@ -99,7 +102,7 @@ class HMSpider(object):
 
     def analysis_timeout_order(self):
         print("===> analysis timeout order")
-        item = self.by_xpath('//*[@id="container"]/div/div[3]/div[2]/div/div[2]/div[2]/div[4]/div[2]/div[7]/div[2]')
+        item = self.by_xpath('//*[@id="container"]/div/div[2]/div[2]/div/div[2]/div[2]/div[4]/div[2]/div[7]/div[2]')
         item.click()
         try:
             orders = []
